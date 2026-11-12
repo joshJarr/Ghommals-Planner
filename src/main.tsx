@@ -76,7 +76,8 @@ function App(){
 
   useEffect(()=>{localStorage.setItem(key,JSON.stringify(saved))},[saved]);
   async function loadTasks(){
-    const r=await fetch('/api/tasks',{cache:'no-store'});
+    // Allow CDN cache in production (Vercel s-maxage); bypass locally so deploys stay fresh
+    const r=await fetch('/api/tasks',{cache:import.meta.env.DEV?'no-store':'default'});
     if(!r.ok)throw Error('Catalogue unavailable');
     const d=await r.json();
     const list=(d.tasks||[]).map((t:Task)=>({...t,id:String(t.id)}));
@@ -156,9 +157,9 @@ function App(){
       ]);
       const data=await playerRes.json();
       if(!playerRes.ok)throw Error(data.error||'WikiSync lookup failed');
-      const ids=(data.completedIds||[]).map(String);
+      const ids=(Array.isArray(data.completedIds)?data.completedIds:[]).map((x:unknown)=>String(x));
       const known=new Set(catalogue.map(t=>t.id));
-      const applied=ids.filter(id=>known.has(id));
+      const applied=ids.filter((id:string)=>known.has(id));
       if(ids.length&&!applied.length){
         throw Error('WikiSync returned CA ids that do not match the task catalogue. Hard-refresh the page and sync again.');
       }
