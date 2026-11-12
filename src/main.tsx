@@ -8,7 +8,6 @@ type Saved={rsn:string,profile:string,wikiSyncCompleted:string[],manualAdd:strin
 
 const tiers=['Easy','Medium','Hard','Elite','Master','Grandmaster'];
 const thresholds=[41,169,436,1100,1965,2697];
-const statusOpts=['Completed','Uncompleted','Aspirational'];
 const key='osrs-ca-planner-v2';
 const tourKey='osrs-ca-planner-tour-v1';
 const empty=():Saved=>({rsn:'',profile:'STANDARD',wikiSyncCompleted:[],manualAdd:[],manualRemove:[],aspirational:[]});
@@ -55,6 +54,10 @@ function formatComp(pct?:number){
   const n=Number(pct);
   return `${n<0.1?'<0.1':n.toFixed(1)}%`;
 }
+function wikiTaskUrl(name:string){
+  return 'https://oldschool.runescape.wiki/w/'+encodeURIComponent(name.replace(/ /g,'_'));
+}
+type RollPool='all'|'uncompleted'|'aspirational';
 
 type ProgressTone='all'|'some'|'none';
 
@@ -96,7 +99,8 @@ function App(){
   const [selTiers,setSelTiers]=useState<string[]>([]);
   const [selBosses,setSelBosses]=useState<string[]>([]);
   const [selTypes,setSelTypes]=useState<string[]>([]);
-  const [selStatus,setSelStatus]=useState<string[]>([]);
+  const [showCompleted,setShowCompleted]=useState(true);
+  const [aspOnly,setAspOnly]=useState(false);
   const [loading,setLoading]=useState(true);
   const [syncing,setSyncing]=useState(false);
   const [error,setError]=useState('');
@@ -107,8 +111,14 @@ function App(){
     try{return localStorage.getItem(tourKey)?'':0}catch{return 0}
   });
   const [confirmClearAsp,setConfirmClearAsp]=useState(false);
+  const [rollPool,setRollPool]=useState<RollPool>('uncompleted');
+  const [rolling,setRolling]=useState(false);
+  const [rollPick,setRollPick]=useState<Task|null>(null);
+  const [rollView,setRollView]=useState<{prev?:Task,mid?:Task,next?:Task}>({});
+  const rollTimer=React.useRef<ReturnType<typeof setTimeout>|null>(null);
 
   useEffect(()=>{localStorage.setItem(key,JSON.stringify(saved))},[saved]);
+  useEffect(()=>()=>{if(rollTimer.current)clearTimeout(rollTimer.current)},[]);
 
   function finishTour(){
     try{localStorage.setItem(tourKey,'1')}catch{/* ignore */}
@@ -117,6 +127,59 @@ function App(){
   function clearAspirational(){
     setSaved(s=>({...s,aspirational:[]}));
     setConfirmClearAsp(false);
+  }
+  function clearRoll(){
+    if(rollTimer.current)clearTimeout(rollTimer.current);
+    setRolling(false);
+    setRollPick(null);
+    setRollView({});
+    setRollPool('uncompleted');
+  }
+  function poolForRoll(){
+    if(rollPool==='all')return tasks;
+    if(rollPool==='aspirational')return tasks.filter(t=>asp.has(t.id)&&!completed.has(t.id));
+    return tasks.filter(t=>!completed.has(t.id));
+  }
+  function startRoll(){
+    const pool=poolForRoll();
+    if(!pool.length){
+      setError(rollPool==='aspirational'?'Star some incomplete tasks before rolling aspirational.':'No tasks available in this roll pool.');
+      return;
+    }
+    setError('');
+    if(rollTimer.current)clearTimeout(rollTimer.current);
+    setRolling(true);
+    setRollPick(null);
+    const winner=pool[Math.floor(Math.random()*pool.length)];
+    const steps=26+Math.floor(Math.random()*12);
+    const strip:Task[]=[];
+    for(let i=0;i<steps-1;i++)strip.push(pool[Math.floor(Math.random()*pool.length)]);
+    strip.push(winner);
+    let i=0;
+    const tick=()=>{
+      const mid=strip[i];
+      setRollView({
+        prev:i>0?strip[i-1]:pool[Math.floor(Math.random()*pool.length)],
+        mid,
+        next:i<strip.length-1?strip[i+1]:pool[Math.floor(Math.random()*pool.length)],
+      });
+      i++;
+      if(i<strip.length){
+        const p=i/strip.length;
+        rollTimer.current=setTimeout(tick,35+Math.floor(p*p*320));
+      }else{
+        const idx=pool.findIndex(t=>t.id===winner.id);
+        setRollView({
+          prev:pool.length>1?pool[(idx-1+pool.length)%pool.length]:undefined,
+          mid:winner,
+          next:pool.length>1?pool[(idx+1)%pool.length]:undefined,
+        });
+        setRollPick(winner);
+        setRolling(false);
+        rollTimer.current=null;
+      }
+    };
+    tick();
   }
   async function loadTasks(){
     // Allow CDN cache in production (Vercel s-maxage); bypass locally so deploys stay fresh
@@ -210,17 +273,12 @@ function App(){
         if(selTiers.length&&!selTiers.includes(t.tier))return false;
         if(selBosses.length&&!selBosses.includes(t.boss))return false;
         if(selTypes.length&&!selTypes.includes(t.type))return false;
-        if(selStatus.length){
-          const hit=selStatus.some(s=>
-            (s==='Completed'&&completed.has(t.id))
-            ||(s==='Uncompleted'&&!completed.has(t.id))
-            ||(s==='Aspirational'&&asp.has(t.id)&&!completed.has(t.id)));
-          if(!hit)return false;
-        }
+        if(!showCompleted&&completed.has(t.id))return false;
+        if(aspOnly&&!asp.has(t.id))return false;
         return `${t.name} ${t.boss} ${t.description}`.toLowerCase().includes(query.toLowerCase());
       })
       .sort(cmp);
-  },[tasks,selTiers,selBosses,selTypes,selStatus,query,sortKey,sortDir,completed,asp]);
+  },[tasks,selTiers,selBosses,selTypes,showCompleted,aspOnly,query,sortKey,sortDir,completed,asp]);
 
   function toggleDone(id:string){
     setSaved(s=>{
@@ -386,7 +444,16 @@ function App(){
           <MultiSelect label="Tiers" options={tiers} value={selTiers} onChange={setSelTiers} status={tierStatus}/>
           <MultiSelect label="Bosses" options={bosses} value={selBosses} onChange={setSelBosses} searchable status={bossStatus}/>
           <MultiSelect label="Types" options={types} value={selTypes} onChange={setSelTypes} status={typeStatus}/>
-          <MultiSelect label="Tasks" options={statusOpts} value={selStatus} onChange={setSelStatus}/>
+          <label className={'ftog'+(showCompleted?' on':'')}>
+            <input type="checkbox" checked={showCompleted} onChange={e=>setShowCompleted(e.target.checked)}/>
+            <i aria-hidden="true"/>
+            <span>Show completed</span>
+          </label>
+          <label className={'ftog'+(aspOnly?' on':'')}>
+            <input type="checkbox" checked={aspOnly} onChange={e=>setAspOnly(e.target.checked)}/>
+            <i aria-hidden="true"/>
+            <span>Aspirational only</span>
+          </label>
         </div>
         {loading?<p>Loading the latest OSRS Wiki task catalogue…</p>:<div className="tablewrap">
           <table>
@@ -419,6 +486,47 @@ function App(){
             </tr>)}</tbody>
           </table>
           {!filtered.length&&<div className="empty">No achievements match your filters.</div>}
+        </div>}
+      </section>
+
+      <section className="roller">
+        <div className="sectiontitle">
+          <div>
+            <h2>Random Combat Achievement</h2>
+            <p>
+              Spin the bandit for a challenge. Inspired by{' '}
+              <a href="https://www.youtube.com/playlist?list=PLRRJuWkxKQPI" target="_blank" rel="noreferrer">Purpp’s Grandfarter series</a>.
+            </p>
+          </div>
+        </div>
+        <div className="roller-bar">
+          <div className="roller-pools" role="radiogroup" aria-label="Roll pool">
+            {([
+              ['all','All CAs'],
+              ['uncompleted','Uncompleted'],
+              ['aspirational','Aspirational'],
+            ] as [RollPool,string][]).map(([id,label])=>(
+              <label key={id} className={'ftog'+(rollPool===id?' on':'')}>
+                <input type="radio" name="roll-pool" checked={rollPool===id} disabled={rolling} onChange={()=>setRollPool(id)}/>
+                <i aria-hidden="true"/>
+                <span>{label}</span>
+              </label>
+            ))}
+          </div>
+          <button type="button" onClick={startRoll} disabled={rolling||!tasks.length}>{rolling?'Rolling…':'🎰 Roll'}</button>
+        </div>
+        <div className={'slot'+(rolling?' spinning':'')+(rollPick&&!rolling?' landed':'')} aria-live="polite">
+          <div className="slot-row faded">{rollView.prev?.name||'—'}</div>
+          <div className="slot-row mid">
+            <strong>{rollView.mid?.name||'Pull the lever'}</strong>
+            {rollView.mid&&<small>{rollView.mid.tier} · {rollView.mid.boss} · +{rollView.mid.points}</small>}
+          </div>
+          <div className="slot-row faded">{rollView.next?.name||'—'}</div>
+        </div>
+        {rollPick&&!rolling&&<div className="roller-actions">
+          <a className="button" href={wikiTaskUrl(rollPick.name)} target="_blank" rel="noreferrer">Wiki ↗</a>
+          <button type="button" onClick={startRoll}>Re-roll</button>
+          <button type="button" className="tour-skip" onClick={clearRoll}>Clear</button>
         </div>}
       </section>
 
