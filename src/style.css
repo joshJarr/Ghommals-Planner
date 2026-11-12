@@ -377,6 +377,16 @@ h1 em{font-style:normal;color:var(--orange)}
   text-overflow:ellipsis;
   white-space:nowrap;
 }
+.msel-log{
+  flex:none;
+  width:8px;
+  height:8px;
+  border-radius:1px;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.35);
+}
+.msel-log.all{background:#5cb85c}
+.msel-log.some{background:#d4b84a}
+.msel-log.none{background:#c45c5c}
 .msel-clear{
   width:100%;
   margin-top:2px;

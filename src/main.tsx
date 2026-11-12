@@ -49,7 +49,9 @@ function formatComp(pct?:number){
   return `${n<0.1?'<0.1':n.toFixed(1)}%`;
 }
 
-function MultiSelect({label,options,value,onChange,searchable}:{label:string,options:string[],value:string[],onChange:(v:string[])=>void,searchable?:boolean}){
+type ProgressTone='all'|'some'|'none';
+
+function MultiSelect({label,options,value,onChange,searchable,status}:{label:string,options:string[],value:string[],onChange:(v:string[])=>void,searchable?:boolean,status?:Record<string,ProgressTone>}){
   const [q,setQ]=useState('');
   const searchRef=React.useRef<HTMLInputElement>(null);
   const text=!value.length?label:value.length===1?value[0]:`${label} · ${value.length}`;
@@ -64,9 +66,11 @@ function MultiSelect({label,options,value,onChange,searchable}:{label:string,opt
       {searchable&&<input ref={searchRef} className="msel-search" placeholder={`Search ${label.toLowerCase()}…`} value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>e.stopPropagation()}/>}
       {shown.map(opt=>{
         const on=value.includes(opt);
+        const tone=status?.[opt];
         return <label key={opt} className={on?'on':''}>
           <input type="checkbox" checked={on} onChange={()=>onChange(on?value.filter(x=>x!==opt):[...value,opt])}/>
           <i aria-hidden="true"/>
+          {tone&&<b className={'msel-log '+tone} title={tone==='all'?'All complete':tone==='some'?'Partially complete':'None complete'} aria-label={tone==='all'?'All complete':tone==='some'?'Partially complete':'None complete'}/>}
           <span>{opt}</span>
         </label>;
       })}
@@ -124,6 +128,30 @@ function App(){
     [saved.wikiSyncCompleted,saved.manualAdd,saved.manualRemove],
   );
   const asp=useMemo(()=>new Set(saved.aspirational),[saved.aspirational]);
+
+  const {tierStatus,bossStatus,typeStatus}=useMemo(()=>{
+    const tierTot:Record<string,number>={},tierDone:Record<string,number>={};
+    const bossTot:Record<string,number>={},bossDone:Record<string,number>={};
+    const typeTot:Record<string,number>={},typeDone:Record<string,number>={};
+    for(const t of tasks){
+      tierTot[t.tier]=(tierTot[t.tier]||0)+1;
+      bossTot[t.boss]=(bossTot[t.boss]||0)+1;
+      typeTot[t.type]=(typeTot[t.type]||0)+1;
+      if(completed.has(t.id)){
+        tierDone[t.tier]=(tierDone[t.tier]||0)+1;
+        bossDone[t.boss]=(bossDone[t.boss]||0)+1;
+        typeDone[t.type]=(typeDone[t.type]||0)+1;
+      }
+    }
+    const tone=(tot:number,done:number):ProgressTone=>!tot||done===0?'none':done>=tot?'all':'some';
+    const tierStatus:Record<string,ProgressTone>={};
+    const bossStatus:Record<string,ProgressTone>={};
+    const typeStatus:Record<string,ProgressTone>={};
+    for(const k of Object.keys(tierTot))tierStatus[k]=tone(tierTot[k],tierDone[k]||0);
+    for(const k of Object.keys(bossTot))bossStatus[k]=tone(bossTot[k],bossDone[k]||0);
+    for(const k of Object.keys(typeTot))typeStatus[k]=tone(typeTot[k],typeDone[k]||0);
+    return {tierStatus,bossStatus,typeStatus};
+  },[tasks,completed]);
 
   const completedCount=tasks.reduce((n,t)=>n+(completed.has(t.id)?1:0),0);
   const current=tasks.reduce((n,t)=>n+(completed.has(t.id)?t.points:0),0);
@@ -300,9 +328,9 @@ function App(){
         </div>
         <div className="filters">
           <input className="search" placeholder="⌕ Search tasks, bosses, descriptions..." value={query} onChange={e=>setQuery(e.target.value)}/>
-          <MultiSelect label="Tiers" options={tiers} value={selTiers} onChange={setSelTiers}/>
-          <MultiSelect label="Bosses" options={bosses} value={selBosses} onChange={setSelBosses} searchable/>
-          <MultiSelect label="Types" options={types} value={selTypes} onChange={setSelTypes}/>
+          <MultiSelect label="Tiers" options={tiers} value={selTiers} onChange={setSelTiers} status={tierStatus}/>
+          <MultiSelect label="Bosses" options={bosses} value={selBosses} onChange={setSelBosses} searchable status={bossStatus}/>
+          <MultiSelect label="Types" options={types} value={selTypes} onChange={setSelTypes} status={typeStatus}/>
           <MultiSelect label="Tasks" options={statusOpts} value={selStatus} onChange={setSelStatus}/>
         </div>
         {loading?<p>Loading the latest OSRS Wiki task catalogue…</p>:<div className="tablewrap">
