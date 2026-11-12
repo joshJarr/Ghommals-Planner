@@ -10,7 +10,14 @@ const tiers=['Easy','Medium','Hard','Elite','Master','Grandmaster'];
 const thresholds=[41,169,436,1100,1965,2697];
 const statusOpts=['Completed','Uncompleted','Aspirational'];
 const key='osrs-ca-planner-v2';
+const tourKey='osrs-ca-planner-tour-v1';
 const empty=():Saved=>({rsn:'',profile:'STANDARD',wikiSyncCompleted:[],manualAdd:[],manualRemove:[],aspirational:[]});
+const tourSteps=[
+  {title:'Welcome to Ghommal\'s Planner',body:'Track your Combat Achievements, shortlist goals, and see how close you are to the next reward tier.'},
+  {title:'Sync your account',body:'Enter your RuneScape name up top and click Sync WikiSync (RuneLite WikiSync plugin required). That fills in completed tasks automatically.'},
+  {title:'Star goals for a projected tier',body:'In the list, click ★ on unfinished achievements you plan to do. Those points feed Aspirational Points and Projected Reward Tier — without marking them complete.'},
+  {title:'Filter and plan',body:'Use Tiers, Bosses, and Types to narrow the list. Green / yellow / red marks show whether you\'ve finished all, some, or none in that group.'},
+];
 
 function loadSaved():Saved{
   try{
@@ -96,8 +103,16 @@ function App(){
   const [info,setInfo]=useState('');
   const [sortKey,setSortKey]=useState<SortKey>('tier');
   const [sortDir,setSortDir]=useState<'asc'|'desc'>('asc');
+  const [tourStep,setTourStep]=useState(()=>{
+    try{return localStorage.getItem(tourKey)?'':0}catch{return 0}
+  });
 
   useEffect(()=>{localStorage.setItem(key,JSON.stringify(saved))},[saved]);
+
+  function finishTour(){
+    try{localStorage.setItem(tourKey,'1')}catch{/* ignore */}
+    setTourStep('');
+  }
   async function loadTasks(){
     // Allow CDN cache in production (Vercel s-maxage); bypass locally so deploys stay fresh
     const r=await fetch('/api/tasks',{cache:import.meta.env.DEV?'no-store':'default'});
@@ -275,7 +290,23 @@ function App(){
   const types=[...new Set(tasks.map(t=>t.type))].sort();
   const synced=!!saved.lastSyncedAt;
 
+  const tourActive=typeof tourStep==='number';
+  const step=tourActive?tourSteps[tourStep]:null;
+
   return <div className="app">
+    {tourActive&&step&&<div className="tour" role="dialog" aria-modal="true" aria-labelledby="tour-title">
+      <div className="tour-card">
+        <div className="tour-eyebrow">QUICK TOUR · {tourStep+1} / {tourSteps.length}</div>
+        <h2 id="tour-title">{step.title}</h2>
+        <p>{step.body}</p>
+        <div className="tour-actions">
+          <button type="button" className="tour-skip" onClick={finishTour}>Skip</button>
+          {tourStep<tourSteps.length-1
+            ?<button type="button" onClick={()=>setTourStep(tourStep+1)}>Next →</button>
+            :<button type="button" onClick={finishTour}>Got it</button>}
+        </div>
+      </div>
+    </div>}
     <header>
       <div className="brand"><div className="brandicon">⚔</div><div><strong>GHOMMAL'S PLANNER</strong><small>COMBAT ACHIEVEMENTS</small></div></div>
       <div className="account">

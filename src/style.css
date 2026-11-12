@@ -161,6 +161,54 @@ h1 em{font-style:normal;color:var(--orange)}
 .intro p,.sectiontitle p{font-size:15px;color:var(--text-dim);max-width:36em}
 .actions{display:flex;gap:9px}
 
+.tour{
+  position:fixed;
+  inset:0;
+  z-index:40;
+  display:grid;
+  place-items:center;
+  padding:24px;
+  background:rgba(10,8,6,.72);
+}
+.tour-card{
+  width:min(440px,100%);
+  padding:22px 24px;
+  border:4px solid;
+  border-color:var(--bevel-light) var(--bevel-dark) var(--bevel-dark) var(--bevel-light);
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.05),transparent 40%),
+    var(--stone-face);
+  box-shadow:0 12px 40px rgba(0,0,0,.55);
+}
+.tour-eyebrow{
+  font-family:Cinzel,Georgia,serif;
+  font-size:10px;
+  letter-spacing:.18em;
+  color:var(--orange);
+  margin-bottom:10px;
+}
+.tour-card h2{
+  font-family:Cinzel,Georgia,serif;
+  font-size:20px;
+  margin:0 0 10px;
+  color:var(--gold-bright);
+  text-shadow:0 1px 0 #000;
+}
+.tour-card p{
+  margin:0 0 20px;
+  font-size:15px;
+  color:var(--text-dim);
+  line-height:1.55;
+}
+.tour-actions{display:flex;justify-content:flex-end;gap:10px;align-items:center}
+.tour-skip{
+  background:transparent;
+  border-color:transparent;
+  color:var(--parchment-dim);
+  box-shadow:none;
+}
+.tour-skip:hover{color:var(--parchment);background:transparent}
+
 .info,.error{
   padding:12px 14px;
   margin-bottom:16px;
