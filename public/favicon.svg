@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Ghommal's Planner">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <rect width="32" height="32" fill="#2a2218"/>
   <rect x="1.5" y="1.5" width="29" height="29" fill="none" stroke="#7a6a52" stroke-width="1.5"/>
   <rect x="3" y="3" width="26" height="26" fill="none" stroke="#1c150f" stroke-width="1"/>
-  <text x="16" y="22" text-anchor="middle" font-size="18" fill="#ff981f" style="filter:drop-shadow(0 0 2px rgba(255,152,31,.5))">”</text>
+  <path fill="#ff981f" d="M10 10h5v8.5c0 2.2-1.4 4-3.6 4.7l-.9-2.1c1-.4 1.5-1.2 1.5-2.4V14H10V10zm8 0h5v8.5c0 2.2-1.4 4-3.6 4.7l-.9-2.1c1-.4 1.5-1.2 1.5-2.4V14H18V10z"/>
 </svg>
