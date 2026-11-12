@@ -19,6 +19,18 @@ npm run dev
 
 Open the Vite URL (usually http://localhost:5173).
 
+## Deploy (Vercel Hobby)
+
+The app is set up for Vercel’s free Hobby plan: the Vite frontend is static, and `/api/tasks` + `/api/player` are serverless functions.
+
+1. Push this branch (or `main`) to GitHub
+2. Import the repo in [Vercel](https://vercel.com/new) — framework preset **Vite**
+3. Deploy (no env vars required)
+
+`vercel.json` points the build at `dist`. Catalogue responses are CDN-cached for 24h (`s-maxage`) so cold starts don’t hit the wiki on every page load. WikiSync lookups stay `no-store`.
+
+Local `npm run server` still works for development (Vite proxies `/api` → `:3001`).
+
 ## Features
 - Live catalogue from the OSRS Wiki Bucket API (`combat_achievement`), cached 24h, with stable numeric CA ids
 - WikiSync RSN lookup for completed Combat Achievements
