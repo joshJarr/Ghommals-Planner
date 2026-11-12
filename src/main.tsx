@@ -33,6 +33,22 @@ function loadSaved():Saved{
   }catch{return empty()}
 }
 
+/** Rarity buckets by global completion % (wiki thresholds; muted palette). */
+function compClass(pct?:number){
+  if(pct==null||Number.isNaN(Number(pct)))return 'na';
+  const n=Number(pct);
+  if(n<0.1)return 'purple'; // very rare
+  if(n<1)return 'red';     // rarer
+  if(n<10)return 'yellow';
+  if(n<50)return 'green';
+  return 'blue';
+}
+function formatComp(pct?:number){
+  if(pct==null||Number.isNaN(Number(pct)))return '—';
+  const n=Number(pct);
+  return `${n<0.1?'<0.1':n.toFixed(1)}%`;
+}
+
 function MultiSelect({label,options,value,onChange,searchable}:{label:string,options:string[],value:string[],onChange:(v:string[])=>void,searchable?:boolean}){
   const [q,setQ]=useState('');
   const searchRef=React.useRef<HTMLInputElement>(null);
@@ -60,6 +76,8 @@ function MultiSelect({label,options,value,onChange,searchable}:{label:string,opt
   </details>;
 }
 
+type SortKey='done'|'name'|'boss'|'type'|'tier'|'points'|'completion'|'plan';
+
 function App(){
   const [tasks,setTasks]=useState<Task[]>([]);
   const [saved,setSaved]=useState<Saved>(loadSaved);
@@ -72,7 +90,8 @@ function App(){
   const [syncing,setSyncing]=useState(false);
   const [error,setError]=useState('');
   const [info,setInfo]=useState('');
-  const [sort,setSort]=useState('tier');
+  const [sortKey,setSortKey]=useState<SortKey>('tier');
+  const [sortDir,setSortDir]=useState<'asc'|'desc'>('asc');
 
   useEffect(()=>{localStorage.setItem(key,JSON.stringify(saved))},[saved]);
   async function loadTasks(){
@@ -116,24 +135,44 @@ function App(){
   const next=thresholds.find(x=>x>current);
   const nextTier=next===undefined?'Grandmaster':tiers[thresholds.indexOf(next)];
 
-  const filtered=useMemo(()=>tasks
-    .filter(t=>{
-      if(selTiers.length&&!selTiers.includes(t.tier))return false;
-      if(selBosses.length&&!selBosses.includes(t.boss))return false;
-      if(selTypes.length&&!selTypes.includes(t.type))return false;
-      if(selStatus.length){
-        const hit=selStatus.some(s=>
-          (s==='Completed'&&completed.has(t.id))
-          ||(s==='Uncompleted'&&!completed.has(t.id))
-          ||(s==='Aspirational'&&asp.has(t.id)&&!completed.has(t.id)));
-        if(!hit)return false;
-      }
-      return `${t.name} ${t.boss} ${t.description}`.toLowerCase().includes(query.toLowerCase());
-    })
-    .sort((a,b)=>sort==='completion'?(b.completion??-1)-(a.completion??-1)
-      :sort==='boss'?a.boss.localeCompare(b.boss)
-      :tiers.indexOf(a.tier)-tiers.indexOf(b.tier)||a.boss.localeCompare(b.boss)),
-  [tasks,selTiers,selBosses,selTypes,selStatus,query,sort,completed,asp]);
+  function toggleSort(key:SortKey){
+    if(sortKey===key)setSortDir(d=>d==='asc'?'desc':'asc');
+    else{
+      setSortKey(key);
+      setSortDir(key==='completion'||key==='points'||key==='done'||key==='plan'?'desc':'asc');
+    }
+  }
+
+  const filtered=useMemo(()=>{
+    const dir=sortDir==='asc'?1:-1;
+    const cmp=(a:Task,b:Task)=>{
+      let n=0;
+      if(sortKey==='done')n=(completed.has(a.id)?1:0)-(completed.has(b.id)?1:0);
+      else if(sortKey==='name')n=a.name.localeCompare(b.name);
+      else if(sortKey==='boss')n=a.boss.localeCompare(b.boss);
+      else if(sortKey==='type')n=a.type.localeCompare(b.type);
+      else if(sortKey==='tier')n=tiers.indexOf(a.tier)-tiers.indexOf(b.tier);
+      else if(sortKey==='points')n=a.points-b.points;
+      else if(sortKey==='completion')n=(a.completion??-1)-(b.completion??-1);
+      else if(sortKey==='plan')n=(asp.has(a.id)?1:0)-(asp.has(b.id)?1:0);
+      return n*dir||a.name.localeCompare(b.name);
+    };
+    return tasks
+      .filter(t=>{
+        if(selTiers.length&&!selTiers.includes(t.tier))return false;
+        if(selBosses.length&&!selBosses.includes(t.boss))return false;
+        if(selTypes.length&&!selTypes.includes(t.type))return false;
+        if(selStatus.length){
+          const hit=selStatus.some(s=>
+            (s==='Completed'&&completed.has(t.id))
+            ||(s==='Uncompleted'&&!completed.has(t.id))
+            ||(s==='Aspirational'&&asp.has(t.id)&&!completed.has(t.id)));
+          if(!hit)return false;
+        }
+        return `${t.name} ${t.boss} ${t.description}`.toLowerCase().includes(query.toLowerCase());
+      })
+      .sort(cmp);
+  },[tasks,selTiers,selBosses,selTypes,selStatus,query,sortKey,sortDir,completed,asp]);
 
   function toggleDone(id:string){
     setSaved(s=>{
@@ -265,11 +304,26 @@ function App(){
           <MultiSelect label="Bosses" options={bosses} value={selBosses} onChange={setSelBosses} searchable/>
           <MultiSelect label="Types" options={types} value={selTypes} onChange={setSelTypes}/>
           <MultiSelect label="Tasks" options={statusOpts} value={selStatus} onChange={setSelStatus}/>
-          <select value={sort} onChange={e=>setSort(e.target.value)}><option value="tier">Sort: Tier</option><option value="boss">Sort: Boss</option><option value="completion">Sort: Most completed</option></select>
         </div>
         {loading?<p>Loading the latest OSRS Wiki task catalogue…</p>:<div className="tablewrap">
           <table>
-            <thead><tr><th>DONE</th><th>ACHIEVEMENT</th><th>BOSS / MONSTER</th><th>TYPE</th><th>TIER</th><th>POINTS</th><th>PLAN</th></tr></thead>
+            <thead><tr>{([
+              ['done','DONE'],
+              ['name','ACHIEVEMENT'],
+              ['boss','BOSS / MONSTER'],
+              ['type','TYPE'],
+              ['tier','TIER'],
+              ['points','POINTS'],
+              ['completion','COMP%'],
+              ['plan','PLAN'],
+            ] as [SortKey,string][]).map(([k,label])=>{
+              const on=sortKey===k;
+              return <th key={k}>
+                <button type="button" className={'thsort'+(on?' on':'')} onClick={()=>toggleSort(k)} aria-label={`Sort by ${label}${on?`, ${sortDir}ending`:''}`}>
+                  {label}<span aria-hidden="true">{on?(sortDir==='asc'?'▲':'▼'):'↕'}</span>
+                </button>
+              </th>;
+            })}</tr></thead>
             <tbody>{filtered.map(t=><tr key={t.id} className={completed.has(t.id)?'done':''}>
               <td><input aria-label={`Completed ${t.name}`} type="checkbox" checked={completed.has(t.id)} onChange={()=>toggleDone(t.id)}/></td>
               <td className="taskname"><strong>{t.name}</strong><small>{t.description}</small></td>
@@ -277,6 +331,7 @@ function App(){
               <td><span className="type">{t.type}</span></td>
               <td><span className={'tier '+t.tier.toLowerCase()}>{t.tier}</span></td>
               <td className="points">+{t.points}</td>
+              <td className={'comp '+compClass(t.completion)} title="Global completion rate from the OSRS Wiki">{formatComp(t.completion)}</td>
               <td><button className={'star '+(asp.has(t.id)?'selected':'')} onClick={()=>toggleAsp(t.id)} aria-label={`Toggle aspirational ${t.name}`}>{asp.has(t.id)?'★':'☆'}</button></td>
             </tr>)}</tbody>
           </table>
