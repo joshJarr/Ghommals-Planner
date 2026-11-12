@@ -106,12 +106,17 @@ function App(){
   const [tourStep,setTourStep]=useState(()=>{
     try{return localStorage.getItem(tourKey)?'':0}catch{return 0}
   });
+  const [confirmClearAsp,setConfirmClearAsp]=useState(false);
 
   useEffect(()=>{localStorage.setItem(key,JSON.stringify(saved))},[saved]);
 
   function finishTour(){
     try{localStorage.setItem(tourKey,'1')}catch{/* ignore */}
     setTourStep('');
+  }
+  function clearAspirational(){
+    setSaved(s=>({...s,aspirational:[]}));
+    setConfirmClearAsp(false);
   }
   async function loadTasks(){
     // Allow CDN cache in production (Vercel s-maxage); bypass locally so deploys stay fresh
@@ -292,6 +297,7 @@ function App(){
 
   const tourActive=typeof tourStep==='number';
   const step=tourActive?tourSteps[tourStep]:null;
+  const aspCount=tasks.filter(t=>asp.has(t.id)&&!completed.has(t.id)).length;
 
   return <div className="app">
     {tourActive&&step&&<div className="tour" role="dialog" aria-modal="true" aria-labelledby="tour-title">
@@ -304,6 +310,17 @@ function App(){
           {tourStep<tourSteps.length-1
             ?<button type="button" onClick={()=>setTourStep(tourStep+1)}>Next →</button>
             :<button type="button" onClick={finishTour}>Got it</button>}
+        </div>
+      </div>
+    </div>}
+    {confirmClearAsp&&<div className="tour" role="dialog" aria-modal="true" aria-labelledby="clear-asp-title">
+      <div className="tour-card warn">
+        <div className="tour-eyebrow">WARNING</div>
+        <h2 id="clear-asp-title">Clear all aspirational goals?</h2>
+        <p>This removes every starred task ({aspCount||saved.aspirational.length}). Your completed WikiSync progress is kept. Projected tier will drop back to your current points only.</p>
+        <div className="tour-actions">
+          <button type="button" className="tour-skip" onClick={()=>setConfirmClearAsp(false)}>Cancel</button>
+          <button type="button" className="danger" onClick={clearAspirational}>Clear all ★</button>
         </div>
       </div>
     </div>}
@@ -338,7 +355,14 @@ function App(){
       <div className="stats">
         <section className="stat"><span>CURRENT POINTS</span><div className="big">{current.toLocaleString()} <small>/ {thresholds[5].toLocaleString()}</small></div><div className="track"><i style={{width:`${Math.min(100,current/thresholds[5]*100)}%`}}/></div><p>{completedCount} tasks completed{saved.lastSyncedAt?` · synced ${new Date(saved.lastSyncedAt).toLocaleString()}`:''}</p></section>
         <section className="stat"><span>CURRENT REWARD TIER</span><div className="big gold">{currentTier}</div><p>{next===undefined?'All rewards unlocked':`${next-current} points until ${nextTier}`}</p></section>
-        <section className="stat"><span>ASPIRATIONAL POINTS</span><div className="big green">+{planned.toLocaleString()}</div><p>{tasks.filter(t=>asp.has(t.id)&&!completed.has(t.id)).length} planned tasks</p></section>
+        <section className="stat">
+          <div className="stat-head">
+            <span>ASPIRATIONAL POINTS</span>
+            <button type="button" className="stat-clear" disabled={!saved.aspirational.length} onClick={()=>setConfirmClearAsp(true)} title="Clear all starred goals">Clear ★</button>
+          </div>
+          <div className="big green">+{planned.toLocaleString()}</div>
+          <p>{aspCount} planned tasks</p>
+        </section>
         <section className="stat"><span>PROJECTED REWARD TIER</span><div className="big">{projectedTier}</div><p>{(current+planned).toLocaleString()} points with planned tasks</p></section>
       </div>
 

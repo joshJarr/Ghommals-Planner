@@ -208,6 +208,24 @@ h1 em{font-style:normal;color:var(--orange)}
   box-shadow:none;
 }
 .tour-skip:hover{color:var(--parchment);background:transparent}
+.tour-card.warn .tour-eyebrow{color:var(--red)}
+.tour-card.warn h2{color:#ffb0b0}
+button.danger{
+  border-color:#8a4040 #3a1515 #3a1515 #8a4040;
+  background:linear-gradient(180deg,#5a3030,#3a1818);
+  color:#ffb0b0;
+}
+button.danger:hover{color:#ffd0d0;background:linear-gradient(180deg,#6a3838,#442020)}
+.stat-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.stat-clear{
+  padding:4px 8px;
+  font-size:9px;
+  letter-spacing:.06em;
+  color:var(--parchment-dim);
+  border-width:2px;
+}
+.stat-clear:hover:not(:disabled){color:#ffb0b0;border-color:#8a4040 #3a1515 #3a1515 #8a4040}
+.stat-clear:disabled{opacity:.35;cursor:default}
 
 .info,.error{
   padding:12px 14px;
@@ -238,7 +256,7 @@ h1 em{font-style:normal;color:var(--orange)}
   border-radius:0;
 }
 .stat{padding:20px}
-.stat>span{
+.stat>span,.stat-head>span{
   font-family:Cinzel,Georgia,serif;
   font-size:9px;
   color:var(--orange);
