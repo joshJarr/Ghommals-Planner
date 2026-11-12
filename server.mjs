@@ -1,8 +1,19 @@
 import {createServer} from 'node:http';
 import {selfCheck} from './src/progress.mjs';
-import {getTasks, getWikiSync} from './lib/osrs.mjs';
+import {getTasks, getRuneProfile, parseRuneProfileTasks} from './lib/osrs.mjs';
 
 selfCheck();
+{
+  const ids = parseRuneProfileTasks({
+    data: [
+      {index: 0, completed: true},
+      {index: 1, completed: false},
+      {index: 27, completed: true},
+      {index: 27, completed: true},
+    ],
+  });
+  if (ids.join(',') !== '0,27') throw Error('parseRuneProfileTasks self-check failed: ' + ids);
+}
 
 function json(res, status, body, cacheControl) {
   res.writeHead(status, {
@@ -20,8 +31,7 @@ const server = createServer(async (req, res) => {
     }
     if (url.pathname === '/api/player') {
       const username = url.searchParams.get('username') || '';
-      const profile = (url.searchParams.get('profile') || 'STANDARD').toUpperCase();
-      return json(res, 200, await getWikiSync(username, profile), 'no-store');
+      return json(res, 200, await getRuneProfile(username), 'no-store');
     }
     res.writeHead(404);
     res.end('Not found');
@@ -30,4 +40,4 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(3001, () => console.log('CA catalogue + WikiSync API on :3001'));
+server.listen(3001, () => console.log('CA catalogue + RuneProfile API on :3001'));

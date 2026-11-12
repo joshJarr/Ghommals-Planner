@@ -1,7 +1,7 @@
 {
   "name": "ghommals-planner",
   "version": "1.0.0",
-  "description": "OSRS Combat Achievements tracker with WikiSync RSN lookup and aspirational planning",
+  "description": "OSRS Combat Achievements tracker with RuneProfile RSN lookup and aspirational planning",
   "type": "module",
   "private": true,
   "license": "MIT",
@@ -18,7 +18,7 @@
     "osrs",
     "old-school-runescape",
     "combat-achievements",
-    "wikisync",
+    "runeprofile",
     "runelite"
   ],
   "engines": {

@@ -244,6 +244,8 @@ button.danger:hover{color:#ffd0d0;background:linear-gradient(180deg,#6a3838,#442
   background:#4a1818;
   color:#ffb0b0;
 }
+.info a,.error a{color:var(--orange);text-decoration:underline}
+.info a:hover,.error a:hover{color:var(--gold-bright)}
 
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 .stat,.roadmap,.browser{
