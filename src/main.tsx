@@ -476,7 +476,7 @@ function App(){
             })}</tr></thead>
             <tbody>{filtered.map(t=><tr key={t.id} className={completed.has(t.id)?'done':''}>
               <td><input aria-label={`Completed ${t.name}`} type="checkbox" checked={completed.has(t.id)} onChange={()=>toggleDone(t.id)}/></td>
-              <td className="taskname"><strong>{t.name}</strong><small>{t.description}</small></td>
+              <td className="taskname"><strong><a href={wikiTaskUrl(t.name)} target="_blank" rel="noreferrer">{t.name}</a></strong><small>{t.description}</small></td>
               <td>{t.boss}</td>
               <td><span className="type">{t.type}</span></td>
               <td><span className={'tier '+t.tier.toLowerCase()}>{t.tier}</span></td>
@@ -513,7 +513,6 @@ function App(){
               </label>
             ))}
           </div>
-          <button type="button" onClick={startRoll} disabled={rolling||!tasks.length}>{rolling?'Rolling…':'🎰 Roll'}</button>
         </div>
         <div className={'slot'+(rolling?' spinning':'')+(rollPick&&!rolling?' landed':'')} aria-live="polite">
           <div className="slot-row faded">{rollView.prev?.name||'—'}</div>
@@ -523,11 +522,13 @@ function App(){
           </div>
           <div className="slot-row faded">{rollView.next?.name||'—'}</div>
         </div>
-        {rollPick&&!rolling&&<div className="roller-actions">
-          <a className="button" href={wikiTaskUrl(rollPick.name)} target="_blank" rel="noreferrer">Wiki ↗</a>
-          <button type="button" onClick={startRoll}>Re-roll</button>
-          <button type="button" className="tour-skip" onClick={clearRoll}>Clear</button>
-        </div>}
+        <div className="roller-actions">
+          {rollPick&&!rolling&&<a className="button" href={wikiTaskUrl(rollPick.name)} target="_blank" rel="noreferrer">Wiki ↗</a>}
+          <button type="button" onClick={startRoll} disabled={rolling||!tasks.length}>
+            {rolling?'Rolling…':rollPick?'Re-roll':'🎰 Roll'}
+          </button>
+          {rollPick&&!rolling&&<button type="button" className="tour-skip" onClick={clearRoll}>Clear</button>}
+        </div>
       </section>
 
       <footer>

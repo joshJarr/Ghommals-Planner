@@ -547,6 +547,8 @@ td input{accent-color:var(--orange);width:16px;height:16px}
   margin-bottom:4px;
   font-weight:700;
 }
+.taskname strong a{color:inherit;text-decoration:none}
+.taskname strong a:hover{color:var(--gold-bright);text-decoration:underline}
 .taskname small{color:#8f8068;line-height:1.45;display:block;font-size:12px}
 .done td{background:rgba(0,100,0,.06)}
 .done .taskname strong{text-decoration:line-through;color:#6a7a5a}
@@ -607,7 +609,7 @@ td input{accent-color:var(--orange);width:16px;height:16px}
 }
 .roller .sectiontitle a{color:var(--orange);text-decoration:none}
 .roller .sectiontitle a:hover{color:var(--gold-bright);text-decoration:underline}
-.roller-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.roller-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
 .roller-pools{display:flex;flex-wrap:wrap;gap:8px}
 .slot{
   max-width:520px;
