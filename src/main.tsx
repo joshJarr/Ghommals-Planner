@@ -13,7 +13,7 @@ const tourKey='osrs-ca-planner-tour-v1';
 const empty=():Saved=>({rsn:'',profile:'STANDARD',wikiSyncCompleted:[],manualAdd:[],manualRemove:[],aspirational:[]});
 const tourSteps=[
   {title:'Welcome to Ghommal\'s Planner',body:'Track your Combat Achievements, shortlist goals, and see how close you are to the next reward tier.'},
-  {title:'Sync your account',body:'Enter your RuneScape name up top and click Sync WikiSync (RuneLite WikiSync plugin required). That fills in completed tasks automatically.'},
+  {title:'Sync your account',body:'Enter your RuneScape name up top and click Sync RuneProfile (RuneLite RuneProfile plugin required). That fills in completed tasks automatically.'},
   {title:'Star goals for a projected tier',body:'In the list, click ★ on unfinished achievements you plan to do. Those points feed Aspirational Points and Projected Reward Tier — without marking them complete.'},
   {title:'Filter and plan',body:'Use Tiers, Bosses, and Types to narrow the list. Green / yellow / red marks show whether you\'ve finished all, some, or none in that group.'},
 ];
@@ -104,6 +104,7 @@ function App(){
   const [loading,setLoading]=useState(true);
   const [syncing,setSyncing]=useState(false);
   const [error,setError]=useState('');
+  const [errorHelp,setErrorHelp]=useState('');
   const [info,setInfo]=useState('');
   const [sortKey,setSortKey]=useState<SortKey>('tier');
   const [sortDir,setSortDir]=useState<'asc'|'desc'>('asc');
@@ -290,23 +291,29 @@ function App(){
     setSaved(s=>({...s,aspirational:s.aspirational.includes(id)?s.aspirational.filter(x=>x!==id):[...s.aspirational,id]}));
   }
 
-  async function syncWiki(){
+  async function syncProfile(){
     const name=saved.rsn.trim();
-    if(!name){setError('Enter a RuneScape name first');return}
-    setSyncing(true);setError('');setInfo('');
+    if(!name){setError('Enter a RuneScape name first');setErrorHelp('');return}
+    setSyncing(true);setError('');setErrorHelp('');setInfo('');
     try{
-      const q=new URLSearchParams({username:name,profile:'STANDARD'});
+      const q=new URLSearchParams({username:name});
       const [playerRes, catalogue]=await Promise.all([
         fetch('/api/player?'+q,{cache:'no-store'}),
         loadTasks(),
       ]);
       const data=await playerRes.json();
-      if(!playerRes.ok)throw Error(data.error||'WikiSync lookup failed');
+      if(!playerRes.ok){
+        const msg=String(data.error||'RuneProfile lookup failed');
+        if(playerRes.status===404||playerRes.status===409||data.code==='NOT_FOUND'||data.code==='STALE_PROFILE'||/no user data|account not found|no profile|per-task/i.test(msg)){
+          setErrorHelp('https://www.runeprofile.com/');
+        }
+        throw Error(msg);
+      }
       const ids=(Array.isArray(data.completedIds)?data.completedIds:[]).map((x:unknown)=>String(x));
       const known=new Set(catalogue.map(t=>t.id));
       const applied=ids.filter((id:string)=>known.has(id));
       if(ids.length&&!applied.length){
-        throw Error('WikiSync returned CA ids that do not match the task catalogue. Hard-refresh the page and sync again.');
+        throw Error('RuneProfile returned CA ids that do not match the task catalogue. Hard-refresh the page and sync again.');
       }
       setSaved(s=>({
         ...s,
@@ -319,7 +326,7 @@ function App(){
         aspirational:s.aspirational.filter(id=>!applied.includes(id)),
       }));
       const points=catalogue.reduce((n,t)=>n+(applied.includes(t.id)?t.points:0),0);
-      setInfo(`Synced ${applied.length} completed CAs (${points.toLocaleString()} pts) from WikiSync.`);
+      setInfo(`Synced ${applied.length} completed CAs (${points.toLocaleString()} pts) from RuneProfile.`);
     }catch(e){setError(String((e as Error).message||e))}
     finally{setSyncing(false)}
   }
@@ -375,7 +382,7 @@ function App(){
       <div className="tour-card warn">
         <div className="tour-eyebrow">WARNING</div>
         <h2 id="clear-asp-title">Clear all aspirational goals?</h2>
-        <p>This removes every starred task ({aspCount||saved.aspirational.length}). Your completed WikiSync progress is kept. Projected tier will drop back to your current points only.</p>
+        <p>This removes every starred task ({aspCount||saved.aspirational.length}). Your completed RuneProfile progress is kept. Projected tier will drop back to your current points only.</p>
         <div className="tour-actions">
           <button type="button" className="tour-skip" onClick={()=>setConfirmClearAsp(false)}>Cancel</button>
           <button type="button" className="danger" onClick={clearAspirational}>Clear all ★</button>
@@ -387,10 +394,10 @@ function App(){
       <div className="account">
         <label>PLAYER NAME
           <input placeholder="Enter RSN" value={saved.rsn} onChange={e=>setSaved(s=>({...s,rsn:e.target.value}))}
-            onKeyDown={e=>{if(e.key==='Enter')syncWiki()}}/>
+            onKeyDown={e=>{if(e.key==='Enter')syncProfile()}}/>
         </label>
-        <button type="button" onClick={syncWiki} disabled={syncing}>{syncing?'Syncing…':'↻ Sync WikiSync'}</button>
-        <span className={'tag '+(synced?'':'muted')}>{synced?`WIKISYNC · ${completedCount} CAs`:'LOCAL / MANUAL'}</span>
+        <button type="button" onClick={syncProfile} disabled={syncing}>{syncing?'Syncing…':'↻ Sync RuneProfile'}</button>
+        <span className={'tag '+(synced?'':'muted')}>{synced?`RUNEPROFILE · ${completedCount} CAs`:'LOCAL / MANUAL'}</span>
       </div>
     </header>
     <main>
@@ -398,7 +405,7 @@ function App(){
         <div>
           <div className="eyebrow">OLD SCHOOL RUNESCAPE / COMBAT ACHIEVEMENTS</div>
           <h1>Your path to <em>Grandmaster.</em></h1>
-          <p>Sync completed tasks from RuneLite WikiSync, shortlist goals, and see how far your next tier is.</p>
+          <p>Sync completed tasks from RuneProfile, shortlist goals, and see how far your next tier is.</p>
         </div>
         <div className="actions">
           <button onClick={exportData}>↓ Export progress</button>
@@ -408,7 +415,10 @@ function App(){
         </div>
       </div>
 
-      {(error||info)&&<div className={error?'error':'info'}>{error||info}</div>}
+      {(error||info)&&<div className={error?'error':'info'}>
+        {error||info}
+        {error&&errorHelp&&<>{' '}<a href={errorHelp} target="_blank" rel="noreferrer">Get RuneProfile ↗</a></>}
+      </div>}
 
       <div className="stats">
         <section className="stat"><span>CURRENT POINTS</span><div className="big">{current.toLocaleString()} <small>/ {thresholds[5].toLocaleString()}</small></div><div className="track"><i style={{width:`${Math.min(100,current/thresholds[5]*100)}%`}}/></div><p>{completedCount} tasks completed{saved.lastSyncedAt?` · synced ${new Date(saved.lastSyncedAt).toLocaleString()}`:''}</p></section>
@@ -436,7 +446,7 @@ function App(){
 
       <section className="browser">
         <div className="sectiontitle">
-          <div><h2>Achievement browser</h2><p>WikiSync fills completed tasks; checkboxes are manual overrides. Stars are aspirational only.</p></div>
+          <div><h2>Achievement browser</h2><p>RuneProfile fills completed tasks; checkboxes are manual overrides. Stars are aspirational only.</p></div>
           <span>{filtered.length} of {tasks.length} tasks</span>
         </div>
         <div className="filters">
@@ -532,11 +542,15 @@ function App(){
       </section>
 
       <footer>
-        Catalogue from the OSRS Wiki Bucket API (stable CA ids). Completions load from RuneLite WikiSync via this app’s API; aspirational picks stay in local storage.
-        Requires the WikiSync plugin and a prior in-game sync.{' '}
-        <a href="https://oldschool.runescape.wiki/w/RuneScape:WikiSync" target="_blank" rel="noreferrer">WikiSync ↗</a>
+        Catalogue from the OSRS Wiki Bucket API (stable CA ids). Completions load from RuneProfile via this app’s API; aspirational picks stay in local storage.
+        Requires the RuneProfile plugin and a prior in-game sync.{' '}
+        <a href="https://runelite.net/plugin-hub/show/runeprofile" target="_blank" rel="noreferrer">RuneProfile plugin ↗</a>
+        {' · '}
+        <a href="https://runeprofile.com" target="_blank" rel="noreferrer">runeprofile.com ↗</a>
         {' · '}
         <a href="https://oldschool.runescape.wiki/w/Combat_Achievements/All_tasks" target="_blank" rel="noreferrer">Wiki tasks ↗</a>
+        {' · '}
+        <a href="https://github.com/joshJarr/Ghommals-Planner/issues" target="_blank" rel="noreferrer">Report an issue ↗</a>
       </footer>
     </main>
   </div>;

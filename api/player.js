@@ -1,4 +1,4 @@
-import {getWikiSync} from '../lib/osrs.mjs';
+import {getRuneProfile} from '../lib/osrs.mjs';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -7,8 +7,7 @@ export default async function handler(req, res) {
   }
   try {
     const username = String(req.query.username || '');
-    const profile = String(req.query.profile || 'STANDARD').toUpperCase();
-    const data = await getWikiSync(username, profile);
+    const data = await getRuneProfile(username);
     res.setHeader('Cache-Control', 'no-store');
     res.status(200).json(data);
   } catch (e) {
