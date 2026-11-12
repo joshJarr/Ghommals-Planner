@@ -1,0 +1,40 @@
+{
+  "name": "ghommals-planner",
+  "version": "1.0.0",
+  "description": "OSRS Combat Achievements tracker with WikiSync RSN lookup and aspirational planning",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "author": "joshJarr",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joshJarr/Ghommals-Planner.git"
+  },
+  "bugs": {
+    "url": "https://github.com/joshJarr/Ghommals-Planner/issues"
+  },
+  "homepage": "https://github.com/joshJarr/Ghommals-Planner#readme",
+  "keywords": [
+    "osrs",
+    "old-school-runescape",
+    "combat-achievements",
+    "wikisync",
+    "runelite"
+  ],
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b && vite build",
+    "test": "node -e \"import('./src/progress.mjs').then(m=>m.selfCheck()&&console.log('ok'))\"",
+    "server": "node server.mjs"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0"
+  }
+}
