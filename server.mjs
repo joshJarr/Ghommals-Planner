@@ -1,6 +1,7 @@
 import {createServer} from 'node:http';
-import {selfCheck} from './src/progress.mjs';
+import {selfCheck} from './lib/progress.mjs';
 import {getTasks, getRuneProfile, parseRuneProfileTasks} from './lib/osrs.mjs';
+import {getItems, getRuneProfileClog, parseRuneProfileClog, gildedThreshold} from './lib/clog.mjs';
 
 selfCheck();
 {
@@ -13,6 +14,20 @@ selfCheck();
     ],
   });
   if (ids.join(',') !== '0,27') throw Error('parseRuneProfileTasks self-check failed: ' + ids);
+  const clogIds = parseRuneProfileClog({
+    tabs: [{
+      name: 'Bosses',
+      pages: [{
+        name: 'Abyssal Sire',
+        items: [
+          {id: 4151, name: 'Abyssal whip', quantity: 3},
+          {id: 13262, name: 'Abyssal orphan', quantity: 0},
+        ],
+      }],
+    }],
+  });
+  if (clogIds.join(',') !== '4151') throw Error('parseRuneProfileClog self-check failed: ' + clogIds);
+  if (gildedThreshold(1734) !== 1550) throw Error('gildedThreshold self-check failed');
 }
 
 function json(res, status, body, cacheControl) {
@@ -26,12 +41,17 @@ function json(res, status, body, cacheControl) {
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || '/', 'http://localhost');
   try {
-    if (url.pathname === '/api/tasks') {
+    if (url.pathname === '/api/ghommals/tasks') {
       return json(res, 200, await getTasks(), 'public, max-age=0, s-maxage=86400');
     }
-    if (url.pathname === '/api/player') {
-      const username = url.searchParams.get('username') || '';
-      return json(res, 200, await getRuneProfile(username), 'no-store');
+    if (url.pathname === '/api/ghommals/player') {
+      return json(res, 200, await getRuneProfile(url.searchParams.get('username') || ''), 'no-store');
+    }
+    if (url.pathname === '/api/collectors/tasks') {
+      return json(res, 200, await getItems(), 'public, max-age=0, s-maxage=86400');
+    }
+    if (url.pathname === '/api/collectors/player') {
+      return json(res, 200, await getRuneProfileClog(url.searchParams.get('username') || ''), 'no-store');
     }
     res.writeHead(404);
     res.end('Not found');
@@ -40,4 +60,5 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(3001, () => console.log('CA catalogue + RuneProfile API on :3001'));
+const port = Number(process.env.PORT) || 3001;
+server.listen(port, () => console.log('OSRS Planners API on :' + port));

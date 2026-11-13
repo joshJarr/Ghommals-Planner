@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ghommalsplanner.vercel.app/sitemap.xml

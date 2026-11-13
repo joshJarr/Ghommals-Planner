@@ -1,4 +1,4 @@
-import {getTasks} from '../lib/osrs.mjs';
+import {getTasks} from '../../lib/osrs.mjs';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -7,7 +7,6 @@ export default async function handler(req, res) {
   }
   try {
     const data = await getTasks();
-    // CDN-cache on Vercel so cold starts don't hammer the wiki every page load
     res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=86400');
     res.status(200).json(data);
   } catch (e) {
